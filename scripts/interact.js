@@ -1,61 +1,67 @@
-const UserCredentials = artifacts.require("UserCredentials");
+const path = require('path');
+const Web3 = require('web3');
 
-module.exports = async function(callback) {
-  try {
-    const accounts = await web3.eth.getAccounts();
-    const contractAddress = "0x181B43058fBe2582e4f6a2e6DaD23046f99657Db"; // Update with the actual address
-    const userCredentials = await UserCredentials.at(contractAddress);
+// Adjust to your Ganache or Ethereum node URL
+const web3 = new Web3('http://127.0.0.1:7545');
 
-    const username = "testuser3443";
-    const passwordHash = "hashed_testpassword34434"; // Provide a hashed password
-    const firstname = "Test";
-    const lastname = "User";
-    const email = "testuser@example.com";
-    const referral = accounts[1]; // Assuming account[1] referred account[0]
+// Adjust the path as necessary
+const abiPath = path.resolve(__dirname, '../build/contracts/UserCredentials.json');
+const abi = require(abiPath).abi;
 
-    // Check if user is already registered
-    const isRegistered = await userCredentials.isRegistered.call({ from: accounts[0] });
+// Replace with your deployed contract address
+const contractAddress = '0xcE96F962827cee25dcA4528E7D39fd59EA982a7B';
 
-    if (isRegistered) {
-      console.log("User already registered:");
-      const [registeredUsername, registeredPasswordHash, registeredFirstname, registeredLastname, registeredEmail, registeredReferral] = await userCredentials.getUser.call({ from: accounts[0] });
-      console.log("Username:", registeredUsername);
-      console.log("Password hash:", registeredPasswordHash);
-      console.log("Firstname:", registeredFirstname);
-      console.log("Lastname:", registeredLastname);
-      console.log("Email:", registeredEmail);
-      console.log("Referral:", registeredReferral);
-    } else {
-      // Register a new user
-      await userCredentials.register(username, passwordHash, firstname, lastname, email, referral, { from: accounts[0] });
-      console.log("User registered");
+// Create a contract instance
+const contract = new web3.eth.Contract(abi, contractAddress);
 
-      // Get the user information after registration
-      const [newUsername, newPasswordHash, newFirstname, newLastname, newEmail, newReferral] = await userCredentials.getUser.call({ from: accounts[0] });
-      console.log("Username after registration:", newUsername);
-      console.log("Password hash after registration:", newPasswordHash);
-      console.log("Firstname after registration:", newFirstname);
-      console.log("Lastname after registration:", newLastname);
-      console.log("Email after registration:", newEmail);
-      console.log("Referral after registration:", newReferral);
+async function registerUser(account, username, passwordHash, firstname, lastname, email, referral) {
+    try {
+        await contract.methods.register(username, passwordHash, firstname, lastname, email, referral)
+            .send({ from: account });
+        console.log(`User ${username} registered from account ${account}`);
+    } catch (error) {
+        console.error(`Error registering user ${username}:`, error);
     }
+}
 
-    // Get all users and log in JSON format
-    const [usernames, passwordHashes, firstnames, lastnames, emails, referrals] = await userCredentials.getAllUsers.call();
-    const allUsers = usernames.map((username, index) => ({
-      username,
-      passwordHash: passwordHashes[index],
-      firstname: firstnames[index],
-      lastname: lastnames[index],
-      email: emails[index],
-      referral: referrals[index]
-    }));
+async function getUser(account) {
+    try {
+        const user = await contract.methods.getUser(account).call();
+        console.log(`User details for account ${account}:`, user);
+    } catch (error) {
+        console.error(`Error getting user details for account ${account}:`, error);
+    }
+}
 
-    console.log("All registered users:", JSON.stringify(allUsers, null, 2));
+async function getAllUsers() {
+    try {
+        const users = await contract.methods.getAllUsers().call();
+        console.log('All registered users:', users);
+    } catch (error) {
+        console.error('Error getting all users:', error);
+    }
+}
 
-    callback();
-  } catch (error) {
-    console.error(error);
-    callback(error);
-  }
+module.exports = async function (callback) {
+    try {
+        // Get accounts from the Ethereum node
+        const accounts = await web3.eth.getAccounts();
+
+        // Register users
+        await registerUser(accounts[0], 'user1', 'passwordHash1', 'FirstName1', 'LastName1', 'email1@example.com', accounts[1]);
+        await registerUser(accounts[1], 'user2', 'passwordHash2', 'FirstName2', 'LastName2', 'email2@example.com', accounts[0]);
+        await registerUser(accounts[2], 'user1', 'passwordHash1', 'FirstName1', 'LastName1', 'email1@example.com', accounts[1]);
+        await registerUser(accounts[3], 'user2', 'passwordHash2', 'FirstName2', 'LastName2', 'email2@example.com', accounts[0]);
+
+        // Retrieve a single user's details
+        await getUser(accounts[0]);
+
+        // Retrieve all users
+        await getAllUsers();
+
+        callback();
+    } catch (error) {
+        console.error(error);
+        callback(error);
+    }
 };
