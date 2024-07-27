@@ -23,8 +23,8 @@ contract UserCredentials {
         address referral
     );
 
-    function isRegistered() public view returns (bool) {
-        return bytes(users[msg.sender].username).length > 0;
+    function isRegistered(address _address) public view returns (bool) {
+        return bytes(users[_address].username).length > 0;
     }
 
     function register(
@@ -35,7 +35,7 @@ contract UserCredentials {
         string memory _email,
         address _referral
     ) public {
-        require(!isRegistered(), "User already registered");
+        require(!isRegistered(msg.sender), "User already registered");
 
         User memory newUser = User({
             username: _username,
@@ -52,7 +52,7 @@ contract UserCredentials {
         emit UserRegistered(msg.sender, _username, _firstname, _lastname, _email, _referral);
     }
 
-    function getUser() public view returns (
+    function getUser(address _userAddress) public view returns (
         string memory,
         string memory,
         string memory,
@@ -60,9 +60,9 @@ contract UserCredentials {
         string memory,
         address
     ) {
-        require(isRegistered(), "User not registered");
+        require(isRegistered(_userAddress), "User not registered");
 
-        User memory user = users[msg.sender];
+        User memory user = users[_userAddress];
         return (
             user.username,
             user.passwordHash,
@@ -74,6 +74,7 @@ contract UserCredentials {
     }
 
     function getAllUsers() public view returns (
+        address[] memory,
         string[] memory,
         string[] memory,
         string[] memory,
@@ -82,7 +83,8 @@ contract UserCredentials {
         address[] memory
     ) {
         uint256 userCount = userAddresses.length;
-        
+
+        address[] memory userAddressesCopy = new address[](userCount);
         string[] memory usernames = new string[](userCount);
         string[] memory passwordHashes = new string[](userCount);
         string[] memory firstnames = new string[](userCount);
@@ -94,6 +96,7 @@ contract UserCredentials {
             address userAddress = userAddresses[i];
             User memory user = users[userAddress];
 
+            userAddressesCopy[i] = userAddress;
             usernames[i] = user.username;
             passwordHashes[i] = user.passwordHash;
             firstnames[i] = user.firstname;
@@ -102,6 +105,6 @@ contract UserCredentials {
             referrals[i] = user.referral;
         }
 
-        return (usernames, passwordHashes, firstnames, lastnames, emails, referrals);
+        return (userAddressesCopy, usernames, passwordHashes, firstnames, lastnames, emails, referrals);
     }
 }
